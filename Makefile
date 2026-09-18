@@ -1,20 +1,25 @@
 .PHONY: help check test apply verify rollback
 
+# Prefer Bun when it is available; otherwise use npm.
+PACKAGE_RUNNER := $(shell if command -v bun >/dev/null 2>&1; then echo bun; else echo npm; fi)
+RUN = $(PACKAGE_RUNNER) run
+
 help:
+	@echo "Package runner: $(PACKAGE_RUNNER)"
 	@echo "Targets: check test apply verify rollback"
 	@echo "apply and rollback modify the ZCode installation file only; no process operations."
 
 check:
-	npm run check
+	$(RUN) check
 
 test:
-	npm test
+	$(RUN) test
 
 apply:
-	npm run apply
+	$(RUN) apply
 
 verify:
-	npm run verify
+	$(RUN) verify
 
 rollback:
-	npm run rollback
+	$(RUN) rollback
