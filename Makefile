@@ -1,25 +1,23 @@
 .PHONY: help check test apply verify rollback
 
-# Prefer Bun when it is available; otherwise use npm.
-PACKAGE_RUNNER := $(shell if command -v bun >/dev/null 2>&1; then echo bun; else echo npm; fi)
-RUN = $(PACKAGE_RUNNER) run
-
+# Test for Bun inside each recipe. This avoids environment variables overriding
+# a Make variable and accidentally leaving GNU Make with only "run <script>".
 help:
-	@echo "Package runner: $(PACKAGE_RUNNER)"
+	@echo "Package runner: Bun when available, otherwise npm"
 	@echo "Targets: check test apply verify rollback"
 	@echo "apply and rollback modify the ZCode installation file only; no process operations."
 
 check:
-	$(RUN) check
+	@if command -v bun >/dev/null 2>&1; then bun run check; else npm run check; fi
 
 test:
-	$(RUN) test
+	@if command -v bun >/dev/null 2>&1; then bun run test; else npm test; fi
 
 apply:
-	$(RUN) apply
+	@if command -v bun >/dev/null 2>&1; then bun run apply; else npm run apply; fi
 
 verify:
-	$(RUN) verify
+	@if command -v bun >/dev/null 2>&1; then bun run verify; else npm run verify; fi
 
 rollback:
-	$(RUN) rollback
+	@if command -v bun >/dev/null 2>&1; then bun run rollback; else npm run rollback; fi
