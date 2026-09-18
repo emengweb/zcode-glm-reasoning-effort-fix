@@ -21,16 +21,41 @@ Windows PowerShell、Node.js 18+。不需要 npm install，不下载依赖。修
 
 ## 使用
 
+项目已封装为标准 Node package 命令，并提供 `Makefile`。不需要 `npm install`，项目无第三方依赖。
+
 ```powershell
 cd C:\Users\lenovo\project\zcode-glm-reasoning-effort-fix
+
 # 只读预览
-node .\patch.mjs check
-# 离线测试，integration 需要当前安装仍是未打补丁版本
-node .\tests\test-mapping.mjs
-node .\tests\integration.mjs
-# 应用：只有这一步修改安装文件
+npm run check
+
+# 离线测试
+npm test
+
+# 应用：唯一会修改 ZCode 安装文件的命令；不会操作任何 ZCode 进程
+npm run apply
+
+# 验证已应用状态
+npm run verify
+
+# 回滚；同样不会操作任何 ZCode 进程
+npm run rollback
+```
+
+等价的 Make 命令（需要系统已有 `make`）：
+
+```powershell
+make check
+make test
+make apply
+make verify
+make rollback
+```
+
+PowerShell 脚本入口仍然保留：
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\apply-patch.ps1 -Confirm
-# 只读检查；期望 status 为 no-nested-reasoning
 powershell -ExecutionPolicy Bypass -File .\verify-patch.ps1
 ```
 
