@@ -1,95 +1,69 @@
-# ZCode `reasoning.effort` 兼容性修复补丁
+# ZCode reasoning.effort 补丁包
 
-## 问题
+## 原因与证据
 
-ZCode 升级后，`openai-compatible` / `openai-chat-completions` 请求的通用模型选项映射同时生成了以下两个字段：
+ZCode 3.12.3 内置的通用 `openai-chat-completions` 规则在处理 reasoningLevel 时，同时生成顶层 `reasoning_effort` 和嵌套 `reasoning.effort`。当前上游返回 UNKNOWN_FIELD: reasoning.effort，与该多余字段一致。GLM-5.3-flash 支持推理，本补丁不关闭推理。
 
-```json
-{
-  "reasoning_effort": "high",
-  "reasoning": {
-    "effort": "high"
-  }
-}
-```
+已经从当前安装文件确认上述重复映射，并离线执行安装版真实请求包装函数验证。没有捕获本次失败请求的完整 HTTP 数据，也没有对比旧版本文件，因此不能声称已经证明升级前的精确行为或所有服务端兼容性。
 
-其中 `reasoning.effort` 是 OpenAI Responses 风格的字段。部分 OpenAI-compatible 服务（包括当前使用的 `glm-5.3-flash` 上游接口）不接受该字段，因此返回：
+## 解决思路和范围
 
-```text
-UNKNOWN_FIELD: reasoning.effort
-```
+仅对应用内置规则文件中的通用 Chat Completions 映射作精确字符串补丁，删除嵌套 reasoning 对象，保留 reasoning_effort、thinking、enable_thinking 和全部模型能力。Responses 规则不变。
 
-`glm-5.3-flash` 本身支持推理，本补丁不会关闭推理，也不会修改 ZCode 用户配置。
+目标文件：
+`C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json`
 
-## 修复思路
+这是应用内置协议规则补丁，不是修改 zcode.cjs，也不是修改 `.zcode` 用户配置。通用规则补丁会影响所有继承该规则的模型，不仅 GLM。某些兼容服务可能依赖嵌套 reasoning 扩展，请先检查并保留回滚能力。若运行时远程规则覆盖本地规则，本补丁可能不生效；不能据此继续修改用户缓存，应进一步检查实际规则来源。
 
-仅修改 ZCode 内置 provider 规则文件中的通用 `openai-chat-completions` 映射：
+## 环境
 
-- 保留 `reasoning_effort`，供 Chat Completions 兼容接口使用；
-- 保留 `thinking` 和 `enable_thinking`，因为部分兼容服务需要这些字段；
-- 删除重复且不属于 Chat Completions 通用协议的嵌套 `reasoning.effort`；
-- 不修改 `openai-responses` 的 `reasoning.effort` 映射；
-- 不修改模型配置、provider 配置或 ZCode 进程。
+Windows PowerShell、Node.js 18+。不需要 npm install，不下载依赖。修改 Program Files 时可能需要管理员 PowerShell。脚本不提权，不联网，也没有任何进程关闭或重启操作。
 
-## 文件
-
-- `apply-patch.ps1`：应用补丁，自动创建带时间戳备份；默认需要管理员权限，因为目标文件位于 `Program Files`。
-- `verify-patch.ps1`：只读验证安装文件是否已经是修复后的规则；不联网、不启动/关闭 ZCode。
-- `tests/test-mapping.mjs`：离线测试映射结果。
-- `patch.diff`：说明性 unified diff。
-
-## 当前验证结果
-
-在临时内存对象上验证了修复后的映射：
-
-- `high` 会生成 `reasoning_effort: high`；
-- 不再生成 `reasoning`；
-- `disabled` 会生成 `reasoning_effort: none`；
-- `max` 会生成 `reasoning_effort: max`；
-- Responses API 映射仍单独生成 `reasoning.effort`；
-- 原始安装文件未被本项目修改。
-
-## 应用方式
-
-> 应用补丁前不需要关闭或重启现有 ZCode 进程。补丁只修改下次启动时读取的规则文件。若 ZCode 已经缓存了规则，需由用户之后自行决定何时重启 ZCode；本补丁脚本不会自动重启。
-
-在 PowerShell 中运行：
+## 使用
 
 ```powershell
 cd C:\Users\lenovo\project\zcode-glm-reasoning-effort-fix
-powershell -ExecutionPolicy Bypass -File .\apply-patch.ps1
-```
-
-然后验证：
-
-```powershell
+# 只读预览
+node .\patch.mjs check
+# 离线测试，integration 需要当前安装仍是未打补丁版本
+node .\tests\test-mapping.mjs
+node .\tests\integration.mjs
+# 应用：只有这一步修改安装文件
+powershell -ExecutionPolicy Bypass -File .\apply-patch.ps1 -Confirm
+# 只读检查；期望 status 为 no-nested-reasoning
 powershell -ExecutionPolicy Bypass -File .\verify-patch.ps1
 ```
 
-应用脚本会：
-
-1. 检查目标文件；
-2. 校验 JSON；
-3. 确认目标规则是 `openai-chat-completions`；
-4. 确认原规则确实包含待删除的 `reasoning` 映射；
-5. 创建备份；
-6. 只删除该映射；
-7. 再次校验 JSON 和补丁结果。
-
-回滚：
-
+也可以直接应用：
 ```powershell
-Copy-Item .\backups\zcode-builtin.json.<timestamp>.bak `
-  'C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json' -Force
+node .\patch.mjs apply 'C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json' --confirm
 ```
 
-## 注意事项
+脚本要求唯一规则和精确映射签名，不匹配则拒绝修改。再次应用为幂等操作。备份在目标文件旁边：
+- `zcode-builtin.json.reasoning-fix.bak`
+- `zcode-builtin.json.reasoning-fix.receipt.json`（修改前后 SHA256）
 
-- ZCode 升级后可能覆盖 `zcode-builtin.json`，届时需要重新运行补丁。
-- 补丁脚本不会自动重启、关闭或终止 ZCode。
-- 本补丁没有向真实服务发送请求；实际线上验证需要用户在方便时自行新建对话测试。
-- 如果上游实际要求的字段不是 `reasoning_effort`，应保留离线测试结果并根据上游协议调整映射，不应直接删除全部 reasoning 参数。
+## 回滚
 
-## Git
+```powershell
+node .\patch.mjs rollback 'C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json' --confirm
+```
 
-本目录是独立 Git 仓库，提交记录用于保存补丁和分析说明，不包含 ZCode 安装文件或用户密钥。
+回滚校验备份和当前文件哈希。如果安装文件后来被升级器或其他操作修改，将拒绝覆盖，以免损失其他改动。成功恢复后删除此次备份和收据。写入不是跨进程事务，请勿同时升级或修改安装文件；已有 ZCode 进程不需要由脚本关闭。
+
+## 生效与验证边界
+
+现有进程可能已缓存规则，不能保证即时生效。脚本不会重启 ZCode，用户自行选择方便的时机让程序重新加载，再新建对话测试同一 provider、模型和思考等级。若仍出错，保留错误详情，不应关闭推理规避。
+
+离线测试不等于真实接口已经恢复。当前交付时未应用补丁，安装文件和用户配置均未修改。升级可能覆盖补丁，升级后必须先 check，不应盲目重打。
+
+## 已完成测试
+
+- low/high/max/disabled/enabled/none 六种等级：只删除嵌套 reasoning，其他输出逐项一致。
+- 从安装版 zcode.cjs 提取实际 Iqr 包装函数，以 mock fetch 验证字符串 body 和 Request 两条路径；无真实网络请求。
+- Responses 映射不变；重复应用幂等。
+- 临时文件应用、备份和字节级回滚通过。
+- 非预期 schema/映射和修改后漂移会拒绝处理。
+- 测试前后安装规则 SHA256 相同。
+
+详见 TEST-RESULTS.md。项目为独立 Git 仓库，不包含用户配置、密钥或完整安装 bundle。
