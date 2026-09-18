@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { check, skip, report, assert, assertEqual } from './helpers.mjs';
 import {
   PATCHES, buildPatched, countOccurrences, readAsarHeader, getEntry, readEntryBuffer,
-  KNOWN_VERSION, HOST_ENTRY_PATH, defaultAsar, transformHost, hash,
+  KNOWN_VERSION, HOST_ENTRY_PATH, defaultAsar, transformHost, hash, backupPaths, loadReceipt,
 } from '../snapshot-patch.mjs';
 
 function specOf(suffix) {
@@ -18,12 +18,23 @@ function specOf(suffix) {
   return spec;
 }
 
+// Returns the original host text. If the installation is already patched, the
+// integrity-verified original backup (written by snapshot-patch apply) is used
+// instead, so this suite keeps working on a patched installation.
 function extractRealHost() {
-  if (!fs.existsSync(defaultAsar)) return null;
+  if (!fs.existsSync(defaultAsar)) return { text: null, fromBackup: false };
   const meta = readAsarHeader(defaultAsar);
   try {
     const entry = getEntry(meta.header, HOST_ENTRY_PATH);
-    return readEntryBuffer(meta.fd, meta, entry).toString('utf8');
+    const live = readEntryBuffer(meta.fd, meta, entry).toString('utf8');
+    if (hash(Buffer.from(live, 'utf8')) === KNOWN_VERSION.hostOriginalSha256) return { text: live, fromBackup: false };
+    const paths = backupPaths(defaultAsar);
+    if (fs.existsSync(paths.receipt) && fs.existsSync(paths.host)) {
+      loadReceipt(defaultAsar); // throws if the backups are corrupted
+      const backup = fs.readFileSync(paths.host).toString('utf8');
+      if (hash(Buffer.from(backup, 'utf8')) === KNOWN_VERSION.hostOriginalSha256) return { text: backup, fromBackup: true };
+    }
+    return { text: live, fromBackup: false };
   } finally {
     fs.closeSync(meta.fd);
   }
@@ -41,9 +52,13 @@ const total = counters => Object.values(counters).reduce((a, b) => a + b, 0);
 
 try {
   // Verify the pinned originals are exactly the real bundle's bytes.
-  const realHost = extractRealHost();
+  const extracted = extractRealHost();
+  const realHost = extracted.text;
   if (realHost) {
     check(hash(Buffer.from(realHost, 'utf8')) === KNOWN_VERSION.hostOriginalSha256, '真实主机文件 SHA256 与版本签名一致', 'real host SHA256 matches the pinned version signature');
+    if (extracted.fromBackup) {
+      check(true, '安装已打补丁，原始主机取自受完整性校验的备份（真实安装只读）', 'installation already patched; original host taken from the integrity-verified backup (real install read-only)');
+    }
     const allPresent = PATCHES.every(p => countOccurrences(realHost, p.original) === 1);
     check(allPresent, '5 个原始方法均逐字节来自真实主机文件', 'all five originals are byte-exact substrings of the real bundle');
     const realPatched = transformHost(realHost);

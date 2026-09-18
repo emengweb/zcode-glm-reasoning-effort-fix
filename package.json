@@ -2,7 +2,7 @@
   "name": "zcode-patches",
   "version": "1.0.0",
   "private": true,
-  "description": "Offline-tested patches: ZCode reasoning field mapping, and a repo-snapshot capture/upload privacy disable patch",
+  "description": "Offline-tested patches: ZCode reasoning field mapping, a repo-snapshot capture/upload privacy disable patch, and a telemetry / extra-report privacy disable patch",
   "type": "module",
   "engines": {
     "node": ">=18"
@@ -19,6 +19,17 @@
     "snapshot:rollback": "node snapshot-patch.mjs rollback \"C:/Program Files/ZCode/resources/app.asar\" --confirm",
     "test:snapshot": "node test-snapshot.mjs",
     "test:snapshot:real": "node tests/test-snapshot-real-copy.mjs",
+    "telemetry:check": "node telemetry-all.mjs check",
+    "telemetry:apply": "node telemetry-all.mjs apply --confirm",
+    "telemetry:verify": "node telemetry-all.mjs verify",
+    "telemetry:rollback": "node telemetry-all.mjs rollback --confirm",
+    "telemetry:apply:asar": "node telemetry-patch.mjs apply \"C:/Program Files/ZCode/resources/app.asar\" --confirm",
+    "telemetry:verify:asar": "node telemetry-patch.mjs verify",
+    "telemetry:apply:agent": "node agent-telemetry-patch.mjs apply \"C:/Program Files/ZCode/resources/glm/zcode.cjs\" --confirm",
+    "telemetry:verify:agent": "node agent-telemetry-patch.mjs verify",
+    "test:telemetry": "node test-telemetry.mjs",
+    "test:telemetry:real": "node tests/test-telemetry-real-copy.mjs",
+    "test:telemetry:combined:real": "node tests/test-telemetry-combined-real-copy.mjs",
     "prepublishOnly": "npm test"
   }
 }

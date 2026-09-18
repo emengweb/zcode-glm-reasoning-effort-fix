@@ -5,12 +5,17 @@
 | 补丁 | 会执行的修改 | 检查 / 应用 / 验证 / 回滚 |
 | --- | --- | --- |
 | 禁用仓库快照采集与上传 | 修改 `app.asar` 中 5 个方法，让采集、队列刷新、单次待上传处理、凭证请求、对象上传直接返回；更新被修改条目的 ASAR 完整性信息；写入备份和收据 | `npm run snapshot:check` / `snapshot:apply` / `snapshot:verify` / `snapshot:rollback` |
+| 禁用遥测与额外上报 | 修改 `app.asar` 中 4 个主进程条目的 6 处锚点（关闭 ARMS RUM、置空 RUM/OTLP 上报地址、短路事件上报传输、禁用主进程 OTLP 导出器），并硬阻断 ASAR 之外的 `glm/zcode.cjs` Agent 遥测共用入口 `H4n`；更新 ASAR 完整性信息；写入备份和收据 | `npm run telemetry:check` / `telemetry:apply` / `telemetry:verify` / `telemetry:rollback`（一键覆盖 ASAR 与 CLI 两个上报面） |
 | 推理参数兼容 | 修改 `zcode-builtin.json`，移除通用 Chat Completions 映射中多余的嵌套 `reasoning.effort`，保留 `reasoning_effort`；写入备份和收据 | `npm run check` / `apply` / `verify` / `rollback` |
 
 快照补丁采用直接禁用入口的方式，不保留该链路的后台采集和上传能力。它不等于禁止整个应用联网：模型请求、其他附件上传等不属于此补丁已核验的覆盖范围。
 
+遥测补丁禁用 ZCode 自己的事件上报、ARMS RUM 与模型/Agent OTLP 轨迹上报，保留正常模型请求与用户主动操作。Agent 侧对共用初始化入口 `H4n` 做硬阻断，因此即使本地 `.env` 提供有效 OTLP 端点或 `ZCODE_MODEL_TELEMETRY_ENABLED=true`，Agent 也不初始化遥测。未发现自动的崩溃远程上报或诊断日志上传（有只读 fail-closed 检查持续把关）；详见分析报告的证据边界与残余限制。
+
 - [快照上传分析报告：触发条件、业务流程图与阻断点](REPORT-SNAPSHOT-UPLOAD.md)
 - [快照补丁操作说明、适用版本与限制](SNAPSHOT-PRIVACY.md)
+- [遥测与额外上报分析报告：流程图、补丁清单、证据边界](REPORT-TELEMETRY-UPLOAD.md)
+- [遥测补丁操作说明、适用版本与限制](TELEMETRY-PRIVACY.md)
 - [离线测试记录](TEST-RESULTS.md)
 
 快照补丁需要完全退出并重新启动 ZCode 后才会加载。运行中的进程可能仍使用旧代码；脚本不自动终止进程，不删除本地历史快照，也无法撤回已上传数据。升级后需要重新检查适用性。
@@ -22,9 +27,12 @@ npm test
 npm run snapshot:check
 npm run snapshot:apply
 npm run snapshot:verify
+npm run telemetry:check
+npm run telemetry:apply
+npm run telemetry:verify
 ```
 
-写入 Program Files 通常需要管理员权限。上述 `snapshot:apply` 只安装快照补丁，推理参数补丁需独立运行 `npm run apply`。
+写入 Program Files 通常需要管理员权限。上述命令只安装对应补丁，推理参数补丁需独立运行 `npm run apply`。遥测补丁与快照补丁可同时应用；回滚请按 LIFO 顺序（后应用的先回滚）。
 
 ## 推理参数兼容补丁
 

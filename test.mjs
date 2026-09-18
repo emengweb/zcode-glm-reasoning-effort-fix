@@ -6,9 +6,16 @@ const suites = [
   ['tests/integration.mjs', '集成检查：六种等级、两种请求体、备份回滚和文件保护（优先使用受校验原始备份）', 'Integration: six levels, two request formats, backup/rollback and file protection (verified original backup first)'],
   ['tests/test-rule-source.mjs', '规则来源解析：优先受校验备份，回退固定夹具', 'Rule source resolution: verified backup first, fixed fixture fallback'],
   ['test-snapshot.mjs', '快照隐私补丁：逻辑、端到端与副作用计数（真实安装只读）', 'Snapshot privacy patch: logic, end-to-end and side-effect counting (real install read-only)'],
+  ['tests/test-telemetry-logic.mjs', '遥测上报禁用补丁：逻辑与真实字节比对（真实安装只读）', 'Telemetry privacy patch: logic and real-byte comparison (real install read-only)'],
+  ['tests/test-telemetry-apply.mjs', '遥测上报禁用补丁：合成 ASAR 端到端与拒绝路径', 'Telemetry privacy patch: synthetic-ASAR end-to-end and refusal paths'],
+  ['tests/test-telemetry-mocks.mjs', '遥测上报禁用补丁：真实提取函数 + mock 副作用', 'Telemetry privacy patch: real extracted functions + mock side effects'],
+  ['tests/test-telemetry-interaction.mjs', '遥测补丁与快照补丁组合：两种顺序与回滚', 'Telemetry and snapshot patch interaction: both orders and rollback'],
+  ['tests/test-agent-telemetry-logic.mjs', 'Agent 遥测硬阻断：逻辑与真实字节比对（真实安装只读）', 'Agent telemetry hard block: logic and real-byte comparison (real install read-only)'],
+  ['tests/test-agent-telemetry-apply.mjs', 'Agent 遥测硬阻断：合成文件端到端与拒绝路径', 'Agent telemetry hard block: synthetic-file end-to-end and refusal paths'],
+  ['tests/test-agent-telemetry-mocks.mjs', 'Agent 遥测硬阻断：有效端点/开关下零初始化', 'Agent telemetry hard block: zero init with a valid endpoint/switch'],
 ];
-const zh = ['离线测试', '这些测试不会调用真实模型，也不会应用补丁，不会启动或重启 ZCode；快照测试只读取真实安装。'];
-const en = ['Offline tests', 'No live model requests and the patch will not be applied. ZCode is not started or restarted; snapshot tests only read the real installation.'];
+const zh = ['离线测试', '这些测试不会调用真实模型，也不会应用补丁，不会启动或重启 ZCode；快照与遥测测试只读取真实安装。'];
+const en = ['Offline tests', 'No live model requests and the patch will not be applied. ZCode is not started or restarted; snapshot and telemetry tests only read the real installation.'];
 const failures = [];
 console.log('正在运行离线测试，请稍候……');
 for (const [file, cn, english] of suites) {
@@ -33,8 +40,8 @@ if (failures.length) {
   en.push('Result: not all tests passed. Resolve the issue above before proceeding.');
   process.exitCode = 1;
 } else {
-  zh.push('结果：全部离线测试通过。', '这里只验证补丁逻辑，不代表补丁已应用或线上对话已恢复。', '下一步：make verify 查看推理补丁安装状态；需要应用时运行 make apply。', '快照隐私补丁另见 SNAPSHOT-PRIVACY.md，先用 npm run snapshot:check 检查。');
-  en.push('Result: all offline tests passed.', 'This does not mean the patch is installed or live conversations are fixed.', 'Next: make verify to inspect the reasoning-patch installation; make apply to install it.', 'For the snapshot privacy patch see SNAPSHOT-PRIVACY.md and start with npm run snapshot:check.');
+  zh.push('结果：全部离线测试通过。', '这里只验证补丁逻辑，不代表补丁已应用或线上对话已恢复。', '下一步：make verify 查看推理补丁安装状态；需要应用时运行 make apply。', '快照隐私补丁另见 SNAPSHOT-PRIVACY.md，先用 npm run snapshot:check 检查。', '遥测上报禁用补丁另见 TELEMETRY-PRIVACY.md，先用 npm run telemetry:check 检查。');
+  en.push('Result: all offline tests passed.', 'This does not mean the patch is installed or live conversations are fixed.', 'Next: make verify to inspect the reasoning-patch installation; make apply to install it.', 'For the snapshot privacy patch see SNAPSHOT-PRIVACY.md and start with npm run snapshot:check.', 'For the telemetry privacy patch see TELEMETRY-PRIVACY.md and start with npm run telemetry:check.');
 }
 console.log('\n' + zh.join('\n') + '\n\n--- English ---\n' + en.join('\n'));
 if (failures.length) {
