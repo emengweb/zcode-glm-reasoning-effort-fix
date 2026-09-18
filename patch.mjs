@@ -84,7 +84,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else throw Error('Usage: node patch.mjs check|apply|rollback [target] [--confirm]');
   } catch(e) {
     let zh, en;
-    if (e.code === 'ENOENT') {
+    const explanations = [
+      [/Explicit target/, '请提供目标路径和 --confirm 参数，确认后再应用或回滚。', 'Provide the target path and --confirm to apply or roll back.'],
+      [/^Usage:/, '命令不受支持。可用命令：check、apply、rollback。用法见下方。', 'Unsupported command. Available commands: check, apply, rollback. See usage below.'],
+      [/Backup exists/, '已有备份或操作记录。请先检查上次结果，或回滚后再试；不要直接覆盖备份。', 'A backup or receipt already exists. Inspect the previous result or roll back before retrying; do not overwrite the backup.'],
+      [/Backup integrity/, '备份校验失败，已停止恢复。请保留备份并检查其来源。', 'Backup integrity check failed. Restoration stopped; retain and inspect the backup.'],
+      [/changed since|changed concurrently/, '目标文件已被其他操作修改，为避免覆盖这些改动，本次操作已停止。', 'The target changed externally. The operation stopped to avoid overwriting those changes.'],
+      [/verification failed/, '写入后的校验失败，请保留备份并检查文件，不要直接重复操作。', 'Post-write verification failed. Retain the backup and inspect the file before retrying.'],
+      [/schema|mapping|Chat rule|preserved effort|serialized/, '当前规则与补丁预期不符，已拒绝修改。请核对 ZCode 版本及规则内容。', 'The rule does not match the supported patch signature. Check the ZCode version and rule content.'],
+    ];
+    const explanation = explanations.find(([pattern]) => pattern.test(e.message));
+    if (explanation) {
+      [,zh,en] = explanation;
+    } else if (e instanceof SyntaxError) {
+      zh = '文件不是有效的 JSON，请检查规则文件或备份记录是否损坏。';
+      en = 'Invalid JSON. Check the rule file or backup receipt for corruption.';
+    } else if (e.code === 'ENOENT') {
       zh = '找不到所需文件，请检查安装路径或备份是否存在。';
       en = 'Required file not found. Check the installation path or backup.';
     } else if (['EACCES','EPERM'].includes(e.code)) {
