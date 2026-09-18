@@ -1,4 +1,32 @@
-# ZCode 推理参数兼容补丁
+# ZCode 补丁合集（zcode-patches）
+
+针对 Windows ZCode 3.12.3 的可检查、可备份、可回滚补丁。各项补丁独立选择，运行测试不会自动修改安装。
+
+| 补丁 | 会执行的修改 | 检查 / 应用 / 验证 / 回滚 |
+| --- | --- | --- |
+| 禁用仓库快照采集与上传 | 修改 `app.asar` 中 5 个方法，让采集、队列刷新、单次待上传处理、凭证请求、对象上传直接返回；更新被修改条目的 ASAR 完整性信息；写入备份和收据 | `npm run snapshot:check` / `snapshot:apply` / `snapshot:verify` / `snapshot:rollback` |
+| 推理参数兼容 | 修改 `zcode-builtin.json`，移除通用 Chat Completions 映射中多余的嵌套 `reasoning.effort`，保留 `reasoning_effort`；写入备份和收据 | `npm run check` / `apply` / `verify` / `rollback` |
+
+快照补丁采用直接禁用入口的方式，不保留该链路的后台采集和上传能力。它不等于禁止整个应用联网：模型请求、其他附件上传等不属于此补丁已核验的覆盖范围。
+
+- [快照上传分析报告：触发条件、业务流程图与阻断点](REPORT-SNAPSHOT-UPLOAD.md)
+- [快照补丁操作说明、适用版本与限制](SNAPSHOT-PRIVACY.md)
+- [离线测试记录](TEST-RESULTS.md)
+
+快照补丁需要完全退出并重新启动 ZCode 后才会加载。运行中的进程可能仍使用旧代码；脚本不自动终止进程，不删除本地历史快照，也无法撤回已上传数据。升级后需要重新检查适用性。
+
+```powershell
+git clone https://github.com/emengweb/zcode-patches.git
+cd zcode-patches
+npm test
+npm run snapshot:check
+npm run snapshot:apply
+npm run snapshot:verify
+```
+
+写入 Program Files 通常需要管理员权限。上述 `snapshot:apply` 只安装快照补丁，推理参数补丁需独立运行 `npm run apply`。
+
+## 推理参数兼容补丁
 
 升级 ZCode 后，具备思考能力的模型在新建会话时可能直接报错：
 
@@ -18,8 +46,8 @@ provider_code=UNKNOWN_FIELD status=400
 需要 Windows 和 Node.js 18 或更高版本。项目没有第三方依赖，不用运行 `npm install`。
 
 ```powershell
-git clone https://github.com/emengweb/zcode-reasoning-effort-fix.git
-cd zcode-reasoning-effort-fix
+git clone https://github.com/emengweb/zcode-patches.git
+cd zcode-patches
 ```
 
 先检查当前版本是否适用：
@@ -165,3 +193,26 @@ node .\patch.mjs rollback 'D:\ZCode\resources\config\provider\zcode-builtin.json
 ```
 
 这只改变补丁操作的目标路径；集成测试仍然读取默认安装目录。
+
+## 仓库快照采集上传禁用补丁
+
+本仓库还包含一个**独立**的隐私补丁，用于在用户授权下禁用 ZCode 内置的仓库快照采集与上传。
+它修改的是另一个目标：`C:\Program Files\ZCode\resources\app.asar` 中的 `out/host/index.js`，
+与上面的推理参数补丁互不影响，可以分别检查、应用和回滚。
+
+```powershell
+npm run snapshot:check      # 只读检查版本签名、归档完整性与 Electron 融合开关风险
+npm run snapshot:apply      # 应用补丁（内置 --confirm）
+npm run snapshot:verify     # 深度验证：全部条目逐块完整性
+npm run snapshot:rollback   # 回滚
+npm run test:snapshot       # 离线测试（逻辑 / 端到端 / 副作用计数）
+npm run test:snapshot:real  # 可选重型测试：真实归档副本上的完整流程
+```
+
+Make 等价目标：`make snapshot-check`、`make snapshot-apply`、`make snapshot-verify`、
+`make snapshot-rollback`、`make test-snapshot`、`make test-snapshot-real`。
+
+应用后需要**完全退出并重启 ZCode**才会生效；脚本不会启动或重启 ZCode。
+补丁只接受已核对的 ZCode 3.12.3 签名，拒绝未知文件；ZCode 升级后需要重新检查并重新应用。
+
+完整的证据、命令、融合开关检查结果与限制说明见 [SNAPSHOT-PRIVACY.md](SNAPSHOT-PRIVACY.md)。
