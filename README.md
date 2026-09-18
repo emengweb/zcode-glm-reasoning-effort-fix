@@ -1,25 +1,25 @@
 # ZCode 推理参数兼容补丁
 
-升级 ZCode 后，使用 `glm-5.3-flash` 新建对话时遇到了这个错误：
+升级 ZCode 后，具备思考能力的模型在新建会话时可能直接报错：
 
 ```text
 未知请求字段：reasoning.effort
 provider_code=UNKNOWN_FIELD status=400
 ```
 
-这个补丁用来处理 ZCode 3.12.3 中的一处请求参数兼容问题：通用 Chat Completions 规则会同时发送两种格式的推理参数，而部分接口不接受其中的 `reasoning.effort`。
+这个补丁用来处理 ZCode 3.12.3 中的一处通用请求参数兼容问题：具备思考能力的模型会经过同一套 Chat Completions 规则，结果同时发送两种格式的推理参数，而不少兼容接口不接受其中的 `reasoning.effort`。目前观察到的问题并不局限于某个模型或某一家服务商。
 
-**不需要关闭 GLM 的推理功能，也不需要改 API Key 或模型配置。** 补丁只移除通用规则中多加的字段，保留原有推理等级。
+**不需要关闭模型的思考能力，也不需要改 API Key 或模型配置。** 补丁只移除通用规则中多加的字段，保留原有推理等级。`glm-5.3-flash` 只是最早排查时使用的复现案例，不是补丁的适用范围。
 
-> 目前已通过离线测试，尚未完成真实接口验证。它不是针对所有 400 错误的通用修复，请先确认你的报错也是 `reasoning.effort`。
+> 目前已通过离线测试，尚未完成真实接口验证。它不是针对所有 400 错误的通用修复，请先确认你的报错与 `reasoning.effort` 有关。
 
 ## 使用方法
 
 需要 Windows 和 Node.js 18 或更高版本。项目没有第三方依赖，不用运行 `npm install`。
 
 ```powershell
-git clone https://github.com/emengweb/zcode-glm-reasoning-effort-fix.git
-cd zcode-glm-reasoning-effort-fix
+git clone https://github.com/emengweb/zcode-reasoning-effort-fix.git
+cd zcode-reasoning-effort-fix
 ```
 
 先检查当前版本是否适用：
@@ -84,7 +84,7 @@ C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json
 }
 ```
 
-补丁移除第二份，只保留：
+补丁移除第二份，只保留 Chat Completions 规则中原本使用的推理参数：
 
 ```json
 {
@@ -98,7 +98,9 @@ C:\Program Files\ZCode\resources\config\provider\zcode-builtin.json
 
 ### 适用范围
 
-这是一条通用 Chat Completions 规则，因此补丁会影响所有继承它的模型，不只 `glm-5.3-flash`。有些兼容服务可能恰好需要嵌套的 `reasoning` 扩展；如果其他模型在打补丁后出现异常，请先回滚。
+这是一条通用 Chat Completions 规则，因此补丁会影响所有继承它的思考模型，不按模型名做特殊处理。当前反馈中，多种具备思考能力的模型在升级后都出现了同类错误，且主要集中在新会话。
+
+有些兼容服务可能恰好需要嵌套的 `reasoning` 扩展；如果某个模型在打补丁后出现异常，请先回滚。
 
 本次排查确认了当前版本里的重复映射，但没有取得失败请求的完整 HTTP 报文，也没有拿旧版代码做对比。所以目前能确认的是这个字段的生成位置和补丁后的请求构造结果，不能保证所有上游接口都接受剩下的参数。
 

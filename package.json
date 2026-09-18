@@ -1,8 +1,8 @@
 {
-  "name": "zcode-glm-reasoning-effort-fix",
+  "name": "zcode-reasoning-effort-fix",
   "version": "1.0.0",
   "private": true,
-  "description": "Offline-tested patch for ZCode openai-compatible reasoning field mapping",
+  "description": "Offline-tested patch for ZCode reasoning field mapping across thinking-capable models",
   "type": "module",
   "engines": {
     "node": ">=18"
