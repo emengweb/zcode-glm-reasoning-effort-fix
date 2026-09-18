@@ -56,10 +56,34 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const [command='check', target=defaultTarget, consent] = process.argv.slice(2);
     if (command === 'check') {
       const bytes=fs.readFileSync(target); const r=transform(bytes.toString('utf8'));
-      console.log(JSON.stringify({target,sha256:hash(bytes),status:r.changed?'patchable':'no-nested-reasoning',before:r.before,after:r.after},null,2));
+      console.log('安装规则检查 / Installation rule check');
+      console.log(`文件 / File: ${target}`);
+      if (r.changed) {
+        console.log('\n[待修复 / PATCHABLE] 本地规则仍包含多余的 reasoning.effort，尚未达到补丁目标状态。');
+        console.log('The local rule still contains the extra reasoning.effort field.');
+        console.log('状态 / Status: patchable');
+        console.log('下一步：运行 make apply 或 npm run apply，然后再次检查。');
+        console.log('Next: run make apply or npm run apply, then verify again.');
+      } else {
+        console.log('\n[规则已修复 / RULE FIXED] 本地通用规则已无嵌套 reasoning，reasoning_effort 仍保留，无需重复应用。');
+        console.log('The local generic rule has no nested reasoning; reasoning_effort is preserved. No reapplication needed.');
+        console.log('状态 / Status: no-nested-reasoning');
+        console.log('当前进程可能缓存旧规则；方便时请自行重新加载 ZCode，再新建会话测试。');
+        console.log('The running app may cache old rules. Reload ZCode when convenient, then test a new conversation.');
+      }
+      console.log('\n本次仅检查磁盘文件，未修改文件或操作进程，也未验证真实接口。');
+      console.log('Read-only disk check: no file changes, process operations or live API verification.');
+      console.log(`SHA256: ${hash(bytes)}`);
     } else if (['apply','rollback'].includes(command)) {
       if(consent!=='--confirm') throw Error('Explicit target and --confirm required');
       console.log(JSON.stringify(command==='apply'?apply(target):rollback(target),null,2));
     } else throw Error('Usage: node patch.mjs check|apply|rollback [target] [--confirm]');
-  } catch(e) {console.error(e.message);process.exitCode=1;}
+  } catch(e) {
+    console.error('[失败 / ERROR] 操作未完成 / Operation did not complete.');
+    if (e.code === 'ENOENT') console.error('找不到所需文件，请检查安装路径或备份是否存在。 / Required file not found; check installation path or backup.');
+    else if (['EACCES','EPERM'].includes(e.code)) console.error('权限不足，请检查文件访问权限。 / Permission denied; check file access permissions.');
+    else console.error('文件内容、规则版本或备份状态未通过检查，请根据下方详情排查。 / File content, rule version or backup state failed validation; see details below.');
+    console.error(`详情 / Details: ${e.message}`);
+    process.exitCode=1;
+  }
 }

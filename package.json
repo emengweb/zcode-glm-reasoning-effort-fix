@@ -9,7 +9,7 @@
   },
   "scripts": {
     "check": "node patch.mjs check",
-    "test": "node tests/test-mapping.mjs && node tests/integration.mjs",
+    "test": "node test.mjs",
     "apply": "node patch.mjs apply \"C:/Program Files/ZCode/resources/config/provider/zcode-builtin.json\" --confirm",
     "verify": "node patch.mjs check",
     "rollback": "node patch.mjs rollback \"C:/Program Files/ZCode/resources/config/provider/zcode-builtin.json\" --confirm",
